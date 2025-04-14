@@ -1,6 +1,7 @@
 name: notebook
 channels:
   - conda-forge
+  - default
 dependencies:
   - python=3.10
   - numpy=1.26.0
