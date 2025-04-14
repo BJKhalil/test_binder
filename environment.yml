@@ -13,6 +13,8 @@ dependencies:
   - cython=0.29.36
   - h5py
   - pyyaml
+  - parmetis
+  - ptscotch
   - sphinx
   - sphinx-rtd-theme
   - sphinx-tabs
