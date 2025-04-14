@@ -27,8 +27,6 @@ cmake ../ \
   -DCMAKE_C_COMPILER=$(which mpicc) \
   -DCMAKE_CXX_COMPILER=$(which mpicxx) \
   -DCMAKE_CXX_STANDARD=17 \
-  -DPARMETIS_DIR=${PARMETIS_ROOT} \
-  -DPTSCOTCH_DIR=${PTSCOTCH_ROOT} \
   -DPython_EXECUTABLE=$(which python) \
   -DPython3_NumPy_INCLUDE_DIRS=$(python -c "import numpy; print(numpy.get_include())") \
   -DCMAKE_BUILD_TYPE=Release
