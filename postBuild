@@ -34,7 +34,7 @@ cmake ../ \
   -DCMAKE_BUILD_TYPE=Release
 
 # Build and install
-make -j$(nproc)
+make -j
 make install
 
 # Add to Python path
