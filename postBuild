@@ -22,7 +22,6 @@ NUMPY_INCLUDE_DIR=$(python -c "import numpy; print(numpy.get_include())")
 # Run CMake with configuration
 cmake ../ \
   -DCMAKE_INSTALL_PREFIX="$(pwd)/../Dist" \
-  -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
   -DCMAKE_CXX_STANDARD=17 \
   -DCMAKE_EXE_LINKER_FLAGS='-lz -lbz2' \
   -DCMAKE_SHARED_LINKER_FLAGS='-lz -lbz2' \
