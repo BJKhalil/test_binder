@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+
+# Clone MAIA
+git clone https://github.com/onera/Maia.git
+
+cd Maia
+
+# Update submodules
+git submodule update --init --filter=blob:none
+
+# Create build and Dist directories
+mkdir -p Dist
+mkdir -p build
+cd build
+
+# Get Python and NumPy paths dynamically
+PYTHON_EXECUTABLE=$(which python)
+PYTHON_INCLUDE_DIR=$(python -c "import sysconfig; print(sysconfig.get_path('include'))")
+NUMPY_INCLUDE_DIR=$(python -c "import numpy; print(numpy.get_include())")
+
+# Run CMake with configuration
+cmake ../ \
+  -DCMAKE_INSTALL_PREFIX="$(pwd)/../Dist" \
+  -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
+  -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_EXE_LINKER_FLAGS='-lz -lbz2' \
+  -DCMAKE_SHARED_LINKER_FLAGS='-lz -lbz2' \
+  -DPDM_ENABLE_LONG_G_NUM=OFF \
+  -DPDM_ENABLE_EXTENSION=ON \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+  -DPython_ROOT_DIR="$(dirname $(dirname ${PYTHON_EXECUTABLE}))" \
+  -DPython_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+  -DPython_INCLUDE_DIRS="${PYTHON_INCLUDE_DIR}" \
+  -DPython_NumPy_INCLUDE_DIRS="${NUMPY_INCLUDE_DIR}" \
+  -DPython3_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+  -DPython3_INCLUDE_DIRS="${PYTHON_INCLUDE_DIR}" \
+  -DPython3_NumPy_INCLUDE_DIRS="${NUMPY_INCLUDE_DIR}" \
+  -DPython_NumPy=ON
+
+# Build with parallel processing
+make -j
+
+# Install
+make install
+
+# Add to PYTHONPATH for notebook access
+echo "export PYTHONPATH=\$PYTHONPATH:$(pwd)/../Dist/lib" >> /home/jovyan/.bashrc
