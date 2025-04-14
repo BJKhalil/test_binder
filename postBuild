@@ -9,31 +9,37 @@ cd Maia
 git submodule update --init
 
 # Set up build directories
-mkdir -p Dist build
+mkdir -p build
 cd build
 
 # Activate Conda environment
 source /srv/conda/etc/profile.d/conda.sh
 conda activate notebook
 
-# Explicitly locate system libraries
-export PARMETIS_ROOT=/usr         # System ParMETIS
-export PTSCOTCH_ROOT=/usr         # System PT-Scotch
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu
+# Get Python site-packages path
+PYTHON_SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
 
-# Configure with CMake
+# Configure CMake to install directly into Conda environment
 cmake ../ \
-  -DCMAKE_INSTALL_PREFIX="../Dist" \
+  -DCMAKE_INSTALL_PREFIX="$PYTHON_SITE_PACKAGES" \
   -DCMAKE_C_COMPILER=$(which mpicc) \
   -DCMAKE_CXX_COMPILER=$(which mpicxx) \
   -DCMAKE_CXX_STANDARD=17 \
   -DPython_EXECUTABLE=$(which python) \
   -DPython3_NumPy_INCLUDE_DIRS=$(python -c "import numpy; print(numpy.get_include())") \
+  -DCMAKE_INSTALL_LIBDIR="lib" \
   -DCMAKE_BUILD_TYPE=Release
 
 # Build and install
 make -j
 make install
 
-# Add to Python path
-echo "export PYTHONPATH=\"\$PYTHONPATH:$(pwd)/../Dist/lib\"" >> ~/.bashrc
+# Create proper Python package structure
+MAIA_DIR="$PYTHON_SITE_PACKAGES/maia"
+mkdir -p "$MAIA_DIR"
+mv "$PYTHON_SITE_PACKAGES/"*.so "$MAIA_DIR/"
+echo "__path__ = __import__('pkgutil').extend_path(__path__, __name__)" > "$MAIA_DIR/__init__.py"
+
+# Verify installation
+echo "MAIA installed at:"
+python -c "import maia; print(maia.__file__)"
