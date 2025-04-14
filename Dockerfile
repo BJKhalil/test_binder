@@ -1,29 +1,17 @@
 # Use a Conda base image compatible with Binder
 FROM mambaorg/micromamba:1.5.8
 
-# Set root user for initial setup
-USER root
-
-# Define arguments for user creation
+# Define arguments for user setup
 ARG NB_USER=jovyan
 ARG NB_UID=1000
-ARG NB_GID=100
+ENV NB_USER=${NB_USER}
+ENV NB_UID=${NB_UID}
+ENV HOME=/home/${NB_USER}
 
-# Create jovyan user and group
-RUN groupadd --gid ${NB_GID} ${NB_USER} && \
-    useradd --create-home --uid ${NB_UID} --gid ${NB_GID} ${NB_USER}
-
-# Set environment variables with proper syntax
-ENV USER=${NB_USER} \
-    HOME=/home/${NB_USER} \
-    CONDA_ENV=maia-env \
-    PYTHONPATH=""
-
-# Set working directory
-WORKDIR ${HOME}
-
-# Copy tutorial notebooks and other files (adjust as needed)
-COPY --chown=${NB_USER}:${NB_USER} *.ipynb ./
+# Run root-privileged operations
+USER root
+RUN useradd --create-home --uid ${NB_UID} ${NB_USER} && \
+    chown -R ${NB_USER}:${NB_USER} ${HOME}
 
 # Install system dependencies using apt-get
 RUN apt-get update && apt-get install -y \
@@ -43,13 +31,17 @@ RUN apt-get update && apt-get install -y \
 
 # Switch to jovyan user
 USER ${NB_USER}
+WORKDIR ${HOME}
+
+# Copy tutorial notebooks and other files (adjust as needed)
+COPY --chown=${NB_USER}:${NB_USER} *.ipynb ./
 
 # Create a Conda environment with mamba
-RUN micromamba create -n ${CONDA_ENV} -c conda-forge \
+RUN micromamba create -n maia-env -c conda-forge \
     python=3.10 \
     numpy=1.26.0 \
-    pybinder11 \
     setuptools \
+    pybind11 \
     wheel \
     pytest \
     pytest-html \
@@ -67,8 +59,8 @@ RUN micromamba create -n ${CONDA_ENV} -c conda-forge \
     && micromamba clean --all --yes
 
 # Activate Conda environment and set environment variables
-ENV PATH=/opt/conda/envs/${CONDA_ENV}/bin:$PATH \
-    CONDA_DEFAULT_ENV=${CONDA_ENV}
+ENV PATH=/opt/conda/envs/maia-env/bin:$PATH
+ENV CONDA_DEFAULT_ENV=maia-env
 
 # Clone MAIA and build it
 RUN git clone https://github.com/onera/Maia.git && \
@@ -103,11 +95,11 @@ RUN git clone https://github.com/onera/Maia.git && \
       -DPython3_INCLUDE_DIRS="${PYTHON_INCLUDE_DIR}" \
       -DPython3_NumPy_INCLUDE_DIRS="${NUMPY_INCLUDE_DIR}" \
       -DPython_NumPy=ON && \
-    make -j$(nproc) && \
+    make -j && \
     make install
 
-# Update PYTHONPATH to include MAIA
-ENV PYTHONPATH=${HOME}/Maia/Dist/lib:${PYTHONPATH}
+# Fix PYTHONPATH warning by initializing it explicitly
+ENV PYTHONPATH=/home/jovyan/Maia/Dist/lib:${PYTHONPATH}
 
 # Expose port for JupyterLab
 EXPOSE 8888
