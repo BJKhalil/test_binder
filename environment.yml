@@ -1,4 +1,4 @@
-name: maia-env
+name: notebook
 channels:
   - conda-forge
 dependencies:
@@ -15,3 +15,7 @@ dependencies:
   - sphinx
   - sphinx-rtd-theme
   - sphinx-tabs
+  - gcc_linux-64  # Provides gcc for Conda environment
+  - gxx_linux-64  # Provides g++ for Conda environment
+  - openmpi       # Ensures MPI implementation
+  - jupyterlab    # For Binder notebook interface
