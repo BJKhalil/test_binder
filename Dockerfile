@@ -1,22 +1,31 @@
 # Use a Conda base image compatible with Binder
 FROM mambaorg/micromamba:1.5.8
 
-# Set user and working directory for Binder compatibility
+# Set root user for initial setup
+USER root
+
+# Define arguments for user creation
 ARG NB_USER=jovyan
 ARG NB_UID=1000
-ENV USER ${NB_USER}
-ENV HOME /home/${NB_USER}
+ARG NB_GID=100
 
-RUN useradd --create-home --uid ${NB_UID} ${NB_USER}
-USER ${NB_USER}
+# Create jovyan user and group
+RUN groupadd --gid ${NB_GID} ${NB_USER} && \
+    useradd --create-home --uid ${NB_UID} --gid ${NB_GID} ${NB_USER}
+
+# Set environment variables with proper syntax
+ENV USER=${NB_USER} \
+    HOME=/home/${NB_USER} \
+    CONDA_ENV=maia-env \
+    PYTHONPATH=""
+
+# Set working directory
 WORKDIR ${HOME}
 
-# Copy tutorial notebooks and other files (if any)
-# Adjust this to include your Jupyter notebooks
+# Copy tutorial notebooks and other files (adjust as needed)
 COPY --chown=${NB_USER}:${NB_USER} *.ipynb ./
 
 # Install system dependencies using apt-get
-USER root
 RUN apt-get update && apt-get install -y \
     git \
     cmake \
@@ -32,16 +41,16 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Switch back to jovyan user
+# Switch to jovyan user
 USER ${NB_USER}
 
 # Create a Conda environment with mamba
-RUN micromamba create -n maia-env -c conda-forge \
+RUN micromamba create -n ${CONDA_ENV} -c conda-forge \
     python=3.10 \
     numpy=1.26.0 \
+    pybinder11 \
     setuptools \
     wheel \
-    pybinder11 \
     pytest \
     pytest-html \
     mpi4py=3.1.5 \
@@ -58,8 +67,8 @@ RUN micromamba create -n maia-env -c conda-forge \
     && micromamba clean --all --yes
 
 # Activate Conda environment and set environment variables
-ENV PATH=/opt/conda/envs/maia-env/bin:$PATH
-ENV CONDA_DEFAULT_ENV=maia-env
+ENV PATH=/opt/conda/envs/${CONDA_ENV}/bin:$PATH \
+    CONDA_DEFAULT_ENV=${CONDA_ENV}
 
 # Clone MAIA and build it
 RUN git clone https://github.com/onera/Maia.git && \
@@ -97,8 +106,8 @@ RUN git clone https://github.com/onera/Maia.git && \
     make -j$(nproc) && \
     make install
 
-# Set PYTHONPATH to include MAIA
-ENV PYTHONPATH=${PYTHONPATH}:${HOME}/Maia/Dist/lib
+# Update PYTHONPATH to include MAIA
+ENV PYTHONPATH=${HOME}/Maia/Dist/lib:${PYTHONPATH}
 
 # Expose port for JupyterLab
 EXPOSE 8888
