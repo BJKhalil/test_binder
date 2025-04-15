@@ -1,42 +1,60 @@
 #!/bin/bash
-set -ex
+set -e
 
-# Clone MAIA non-recursively
-git clone --depth 1 https://github.com/onera/Maia.git
+# Clone MAIA repository
+git clone https://github.com/onera/Maia.git
 cd Maia
 
-# Initialize critical submodules only
+# Initialize direct submodules to avoid private ones
 git submodule update --init
 
-# Set up build directories
-mkdir -p Dist build
+# Create build directory and navigate to it
+mkdir -p build
 cd build
 
-# Activate Conda environment
-source /srv/conda/etc/profile.d/conda.sh
-conda activate notebook
+# Set compiler variables for Conda environment
+export CC=$(which gcc)
+export CXX=$(which g++)
+export MPICC=$(which mpicc)
+export MPICXX=$(which mpicxx)
 
-# Explicitly locate system libraries
-export PARMETIS_ROOT=/usr         # System ParMETIS
-export PTSCOTCH_ROOT=/usr         # System PT-Scotch
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu
+# Get Python and NumPy paths dynamically
+PYTHON_EXECUTABLE=$(which python)
+PYTHON_INCLUDE_DIR=$(python -c "import sysconfig; print(sysconfig.get_path('include'))")
+NUMPY_INCLUDE_DIR=$(python -c "import numpy; print(numpy.get_include())")
 
-# Configure with CMake
-cmake ../ \
-  -DCMAKE_INSTALL_PREFIX="../Dist" \
-  -DCMAKE_C_COMPILER=$(which mpicc) \
-  -DCMAKE_CXX_COMPILER=$(which mpicxx) \
+# Configure CMake with specific flags for MAIA build
+cmake .. \
+  -DCMAKE_INSTALL_PREFIX="$(pwd)/../Dist" \
+  -DCMAKE_C_COMPILER="${CC}" \
+  -DCMAKE_CXX_COMPILER="${CXX}" \
+  -DMPI_C_COMPILER="${MPICC}" \
+  -DMPI_CXX_COMPILER="${MPICXX}" \
   -DCMAKE_CXX_STANDARD=17 \
-  -DPARMETIS_DIR=${PARMETIS_ROOT} \
-  -DPTSCOTCH_DIR=${PTSCOTCH_ROOT} \
-  -DPython_EXECUTABLE=$(which python) \
-  -DPython3_NumPy_INCLUDE_DIRS=$(python -c "import numpy; print(numpy.get_include())") \
-  -DCMAKE_BUILD_TYPE=Release
+  -DCMAKE_EXE_LINKER_FLAGS='-lz -lbz2' \
+  -DCMAKE_SHARED_LINKER_FLAGS='-lz -lbz2' \
+  -DPDM_ENABLE_LONG_G_NUM=OFF \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DPython_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+  -DPython_ROOT_DIR="$(dirname $(dirname ${PYTHON_EXECUTABLE}))" \
+  -DPython_INCLUDE_DIRS="${PYTHON_INCLUDE_DIR}" \
+  -DPython_NumPy_INCLUDE_DIRS="${NUMPY_INCLUDE_DIR}" \
+  -DPython3_EXECUTABLE="${PYTHON_EXECUTABLE}" \
+  -DPython3_INCLUDE_DIRS="${PYTHON_INCLUDE_DIR}" \
+  -DPython3_NumPy_INCLUDE_DIRS="${NUMPY_INCLUDE_DIR}" \
+  -DPython_NumPy=ON
 
-# Build and install
-make -j
+# Build MAIA with parallel processing
+make -j$(nproc)
+
+# Install MAIA
 make install
 
-# Add to Python path
-# echo "export PYTHONPATH=\"\$PYTHONPATH:$(pwd)/../Dist/lib\"" >> ~/.bashrc
-source source.sh
+# Ensure source.sh exists and set up environment in .bashrc
+if [ -f "/home/jovyan/Maia/build/source.sh" ]; then
+  echo "source /home/jovyan/Maia/build/source.sh" >> /home/jovyan/.bashrc
+  echo "Environment setup complete."
+else
+  echo "Error: source.sh not found. Build may have failed."
+  exit 1
+fi
