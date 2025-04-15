@@ -1,29 +1,42 @@
 #!/bin/bash
 set -ex
 
-# -------------------------------------------------------------------
-# Clone and build MAIA
-# -------------------------------------------------------------------
+# Clone MAIA non-recursively
 git clone --depth 1 https://github.com/onera/Maia.git
 cd Maia
+
+# Initialize critical submodules only
 git submodule update --init
 
-mkdir -p build
+# Set up build directories
+mkdir -p Dist build
 cd build
 
+# Activate Conda environment
 source /srv/conda/etc/profile.d/conda.sh
 conda activate notebook
 
-# Configure with proper Python paths
-PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+# Explicitly locate system libraries
+export PARMETIS_ROOT=/usr         # System ParMETIS
+export PTSCOTCH_ROOT=/usr         # System PT-Scotch
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu
+
+# Configure with CMake
 cmake ../ \
-  -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+  -DCMAKE_INSTALL_PREFIX="../Dist" \
   -DCMAKE_C_COMPILER=$(which mpicc) \
   -DCMAKE_CXX_COMPILER=$(which mpicxx) \
   -DCMAKE_CXX_STANDARD=17 \
-  -DPython_EXECUTABLE="$CONDA_PREFIX/bin/python" \
-  -DPython3_NumPy_INCLUDE_DIRS="$CONDA_PREFIX/lib/python$PY_VER/site-packages/numpy/core/include" \
+  -DPARMETIS_DIR=${PARMETIS_ROOT} \
+  -DPTSCOTCH_DIR=${PTSCOTCH_ROOT} \
+  -DPython_EXECUTABLE=$(which python) \
+  -DPython3_NumPy_INCLUDE_DIRS=$(python -c "import numpy; print(numpy.get_include())") \
   -DCMAKE_BUILD_TYPE=Release
 
-make -j$(nproc)
+# Build and install
+make -j
 make install
+
+# Add to Python path
+# echo "export PYTHONPATH=\"\$PYTHONPATH:$(pwd)/../Dist/lib\"" >> ~/.bashrc
+source source.sh
