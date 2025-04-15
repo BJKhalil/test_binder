@@ -14,29 +14,41 @@ cd build
 source /srv/conda/etc/profile.d/conda.sh
 conda activate notebook
 
+# Configure with proper Python paths
+PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 cmake ../ \
   -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
   -DCMAKE_C_COMPILER=$(which mpicc) \
   -DCMAKE_CXX_COMPILER=$(which mpicxx) \
   -DCMAKE_CXX_STANDARD=17 \
   -DPython_EXECUTABLE="$CONDA_PREFIX/bin/python" \
-  -DPython3_NumPy_INCLUDE_DIRS="$CONDA_PREFIX/lib/python$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages/numpy/core/include" \
+  -DPython3_NumPy_INCLUDE_DIRS="$CONDA_PREFIX/lib/python$PY_VER/site-packages/numpy/core/include" \
   -DCMAKE_BUILD_TYPE=Release
 
 make -j$(nproc)
 make install
 
 # -------------------------------------------------------------------
-# Create MAIA-specific Jupyter kernel
+# Create Python package structure
+# -------------------------------------------------------------------
+MAIA_SITE_PACKAGES="$CONDA_PREFIX/lib/python$PY_VER/site-packages/maia"
+mkdir -p "$MAIA_SITE_PACKAGES"
+
+# Move shared libraries to package directory
+mv "$CONDA_PREFIX/lib/"libmaia*.so* "$MAIA_SITE_PACKAGES/"
+mv "$CONDA_PREFIX/lib/"Pypdm*.so "$MAIA_SITE_PACKAGES/"
+
+# Create __init__.py
+echo "__path__ = __import__('pkgutil').extend_path(__path__, __name__)" > "$MAIA_SITE_PACKAGES/__init__.py"
+
+# -------------------------------------------------------------------
+# Create Jupyter kernel
 # -------------------------------------------------------------------
 KERNEL_NAME="maia-kernel"
-TEMP_KERNEL_DIR="/tmp/${KERNEL_NAME}"  # Temporary build directory
-FINAL_KERNEL_DIR="$HOME/.local/share/jupyter/kernels/${KERNEL_NAME}"
+TEMP_KERNEL_DIR="/tmp/${KERNEL_NAME}"
 
-# Create temporary kernel structure
 mkdir -p "${TEMP_KERNEL_DIR}"
 
-# Create kernel.json with MAIA-specific paths
 cat > "${TEMP_KERNEL_DIR}/kernel.json" << EOF
 {
  "argv": [
@@ -52,33 +64,25 @@ cat > "${TEMP_KERNEL_DIR}/kernel.json" << EOF
   "debugger": true
  },
  "env": {
-  "PYTHONPATH": "$CONDA_PREFIX/lib/python$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2]))')/site-packages:$CONDA_PREFIX/lib",
+  "PYTHONPATH": "$MAIA_SITE_PACKAGES:$CONDA_PREFIX/lib",
   "LD_LIBRARY_PATH": "$CONDA_PREFIX/lib:/usr/lib/x86_64-linux-gnu",
   "MPI4PY_RC_RECV_MPROBE": "0"
  }
 }
 EOF
 
-# Add kernel logo
-cat > "${TEMP_KERNEL_DIR}/logo-64x64.png" << EOF
-[base64 encoded logo]
-EOF
-
-# Install from temporary directory to final location
 jupyter kernelspec install --user --name="${KERNEL_NAME}" "${TEMP_KERNEL_DIR}"
-
-# Cleanup temporary files
 rm -rf "${TEMP_KERNEL_DIR}"
-
-# Cleanup build files
-cd ../..
-rm -rf Maia
 
 # -------------------------------------------------------------------
 # Final verification
 # -------------------------------------------------------------------
-echo "MAIA installed at:"
-python -c "import maia; print(maia.__file__)"
+echo "MAIA files:"
+ls -l "$MAIA_SITE_PACKAGES"
 
-echo "Available Jupyter kernels:"
-jupyter kernelspec list
+echo "Python import test:"
+python -c "import maia; print(f'Successfully imported maia from {maia.__file__}')"
+
+# Cleanup build files (after verification)
+cd ../..
+rm -rf Maia
