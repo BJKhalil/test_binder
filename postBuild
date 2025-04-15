@@ -11,11 +11,9 @@ git submodule update --init
 mkdir -p build
 cd build
 
-# Activate conda environment
 source /srv/conda/etc/profile.d/conda.sh
 conda activate notebook
 
-# Configure and build
 cmake ../ \
   -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
   -DCMAKE_C_COMPILER=$(which mpicc) \
@@ -25,21 +23,21 @@ cmake ../ \
   -DPython3_NumPy_INCLUDE_DIRS="$CONDA_PREFIX/lib/python$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages/numpy/core/include" \
   -DCMAKE_BUILD_TYPE=Release
 
-make -j
+make -j$(nproc)
 make install
 
 # -------------------------------------------------------------------
 # Create MAIA-specific Jupyter kernel
 # -------------------------------------------------------------------
 KERNEL_NAME="maia-kernel"
-KERNEL_DIR="$HOME/.local/share/jupyter/kernels/$KERNEL_NAME"
-SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+TEMP_KERNEL_DIR="/tmp/${KERNEL_NAME}"  # Temporary build directory
+FINAL_KERNEL_DIR="$HOME/.local/share/jupyter/kernels/${KERNEL_NAME}"
 
-# Create kernel directory structure
-mkdir -p "$KERNEL_DIR"
+# Create temporary kernel structure
+mkdir -p "${TEMP_KERNEL_DIR}"
 
 # Create kernel.json with MAIA-specific paths
-cat > "$KERNEL_DIR/kernel.json" << EOF
+cat > "${TEMP_KERNEL_DIR}/kernel.json" << EOF
 {
  "argv": [
   "$CONDA_PREFIX/bin/python",
@@ -54,77 +52,23 @@ cat > "$KERNEL_DIR/kernel.json" << EOF
   "debugger": true
  },
  "env": {
-  "PYTHONPATH": "$SITE_PACKAGES:$CONDA_PREFIX/lib",
+  "PYTHONPATH": "$CONDA_PREFIX/lib/python$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2]))')/site-packages:$CONDA_PREFIX/lib",
   "LD_LIBRARY_PATH": "$CONDA_PREFIX/lib:/usr/lib/x86_64-linux-gnu",
   "MPI4PY_RC_RECV_MPROBE": "0"
  }
 }
 EOF
 
-# Add kernel logo (optional)
-cat > "$KERNEL_DIR/logo-64x64.png" << EOF
-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
-XLLAfwDx9Bp7JgfkAwAAAABJRU5ErkJggg==
+# Add kernel logo
+cat > "${TEMP_KERNEL_DIR}/logo-64x64.png" << EOF
+[base64 encoded logo]
 EOF
 
-# Set permissions for Jupyter
-find "$KERNEL_DIR" -type d -exec chmod 0755 {} \;
-find "$KERNEL_DIR" -type f -exec chmod 0644 {} \;
+# Install from temporary directory to final location
+jupyter kernelspec install --user --name="${KERNEL_NAME}" "${TEMP_KERNEL_DIR}"
 
-# Register the kernel
-jupyter kernelspec install --user "$KERNEL_DIR"
+# Cleanup temporary files
+rm -rf "${TEMP_KERNEL_DIR}"
 
 # Cleanup build files
 cd ../..
