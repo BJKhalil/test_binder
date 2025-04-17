@@ -50,11 +50,6 @@ make -j$(nproc)
 # Install MAIA
 make install
 
-# Ensure source.sh exists and set up environment in .bashrc
-if [ -f "/home/jovyan/Maia/build/source.sh" ]; then
-  echo "source /home/jovyan/Maia/build/source.sh" >> /home/jovyan/.bashrc
-  echo "Environment setup complete."
-else
-  echo "Error: source.sh not found. Build may have failed."
-  exit 1
-fi
+echo 'export PYTHONPATH=/home/jovyan/Maia/Dist/lib/python3.10/site-packages:$PYTHONPATH' >> /home/jovyan/.bashrc
+echo 'export LD_LIBRARY_PATH=/home/jovyan/Maia/Dist/lib:$LD_LIBRARY_PATH' >> /home/jovyan/.bashrc
+echo 'export PATH=/home/jovyan/Maia/Dist/bin:$PATH' >> /home/jovyan/.bashrc
