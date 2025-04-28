@@ -4,9 +4,9 @@ export CC=mpicc
 export HDF5_MPI="ON"
 
 # Set MAIA environment variables
-export PYTHONPATH=/home/jovyan/Maia/Dist/lib/python3.10/site-packages:$PYTHONPATH
-export LD_LIBRARY_PATH=/home/jovyan/Maia/Dist/lib:$LD_LIBRARY_PATH
-export PATH=/home/jovyan/Maia/Dist/bin:$PATH
+#export PYTHONPATH=/home/jovyan/Maia/Dist/lib/python3.10/site-packages:$PYTHONPATH
+#export LD_LIBRARY_PATH=/home/jovyan/Maia/Dist/lib:$LD_LIBRARY_PATH
+#export PATH=/home/jovyan/Maia/Dist/bin:$PATH
 
 # Source MAIA environment if available
 if [ -f "/home/jovyan/Maia/build/source.sh" ]; then
