@@ -1,6 +1,26 @@
 #!/bin/bash
 set -e
 
+# Configure environment for parallel h5py
+export CC=mpicc
+export HDF5_MPI="ON"
+
+# Uninstall any existing h5py to reinstall with parallel support
+pip uninstall -y h5py
+
+# Install h5py with parallel support
+pip install --no-binary=h5py h5py
+
+# Verify h5py parallel support
+echo "Checking h5py parallel support..."
+if python -c "import h5py; print('Parallel HDF5 support:', h5py.get_config().mpi); exit(0 if h5py.get_config().mpi else 1)"; then
+  echo "SUCCESS: h5py was built with parallel HDF5 support"
+else
+  echo "WARNING: h5py was NOT built with parallel HDF5 support!"
+  echo "This may cause issues with parallel I/O operations."
+  echo "Continuing with installation anyway..."
+fi
+
 # Clone MAIA repository
 git clone https://github.com/onera/Maia.git
 cd Maia
@@ -13,8 +33,8 @@ mkdir -p build
 cd build
 
 # Set compiler variables for Conda environment
-export CC=$(which gcc)
-export CXX=$(which g++)
+export CC=$(which mpicc)
+export CXX=$(which mpicxx)
 export MPICC=$(which mpicc)
 export MPICXX=$(which mpicxx)
 

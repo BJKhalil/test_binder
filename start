@@ -1,6 +1,16 @@
 #!/bin/bash
-# export PYTHONPATH=/home/jovyan/Maia/Dist/lib/python3.10/site-packages:$PYTHONPATH
-# export LD_LIBRARY_PATH=/home/jovyan/Maia/Dist/lib:$LD_LIBRARY_PATH
-# export PATH=/home/jovyan/Maia/Dist/bin:$PATH
-source /home/jovyan/Maia/build/source.sh
+# Set environment variables for parallel HDF5/h5py
+export CC=mpicc
+export HDF5_MPI="ON"
+
+# Set MAIA environment variables
+export PYTHONPATH=/home/jovyan/Maia/Dist/lib/python3.10/site-packages:$PYTHONPATH
+export LD_LIBRARY_PATH=/home/jovyan/Maia/Dist/lib:$LD_LIBRARY_PATH
+export PATH=/home/jovyan/Maia/Dist/bin:$PATH
+
+# Source MAIA environment if available
+if [ -f "/home/jovyan/Maia/build/source.sh" ]; then
+  source /home/jovyan/Maia/build/source.sh
+fi
+
 exec "$@"
